@@ -47,7 +47,7 @@ const Welcome = (props) => {
   }
 
   useEffect(() => {
-    init();
+    // init();
     // Update socket status when connecting
     socket.on("connect", () => {
       console.log("Connected!");

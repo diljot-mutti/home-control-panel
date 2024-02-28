@@ -111,8 +111,9 @@ io.on("connection", (socket) => {
     // Send the lock status change to all clients in the "dilshine_users" room
     io.to("dilshine_users").emit("lock_status_change", payload);
 
-    // Send push notification to all subscribers
-    sendPushNotification("Lock Status Change", `Lock is now ${lockStatus}`);
+    if (lockStatus == "LOCKED" || lockStatus == "UNLOCKED") {
+      sendPushNotification("Lock Status Change", `Lock is now ${lockStatus}`);
+    }
   });
 
   //listen to unlock request
