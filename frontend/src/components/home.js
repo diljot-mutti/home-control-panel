@@ -13,7 +13,8 @@ import FingerprintJS from "@fingerprintjs/fingerprintjs";
 
 import { socket } from "../common/socket";
 
-import { useSubscribe } from "react-pwa-push-notifications";
+// import { useSubscribe } from "react-pwa-push-notifications";
+import { useSubscribe } from "../common/subscribeHook";
 
 import axios from "axios";
 
@@ -27,12 +28,17 @@ const Welcome = (props) => {
   const [subscribeId, setSubscribeId] = useState(null);
   const { getSubscription } = useSubscribe({ publicKey: PUBLIC_KEY });
   const [errString, setErrString] = useState("");
+  const [lockConnectionStatus, setLockConnectionStatus] = useState("OFFLINE");
+  const [lockStatusUpdatedTime, setLockStatusUpdatedTime] = useState(new Date(2020, 0, 1, 0, 0, 0, 0));
 
   async function init() {
     console.log("Getting subscription");
     try {
-      const subscription = await getSubscription();
-      console.log(subscription);
+      const subscription = await getSubscription().catch((e) => {
+        console.log("Error getting subscription:", e);
+        setErrString(JSON.stringify(e));
+      });
+
       await axios.post(process.env.REACT_APP_API_URL, {
         subscription: subscription,
         id: subscribeId,
@@ -44,7 +50,7 @@ const Welcome = (props) => {
   }
 
   useEffect(() => {
-    // init();
+    init();
     // Update socket status when connecting
     socket.on("connect", () => {
       console.log("Connected!");
@@ -73,6 +79,8 @@ const Welcome = (props) => {
     socket.on("lock_status_change", (data) => {
       console.log("Lock status changed:", data);
       setLockStatus(data.lock_status);
+      setLockConnectionStatus(data.lockConnectionStatus);
+      setLockStatusUpdatedTime(data.lockStatusUpdatedTime);
     });
   }, []);
 
@@ -117,7 +125,7 @@ const Welcome = (props) => {
         Init
       </Button>
 
-      <p>-{errString}</p>
+      <p>{errString}</p>
       <Grid>
         <Typography
           variant="h4"
@@ -137,8 +145,22 @@ const Welcome = (props) => {
           Server Status:{" "}
           <Chip
             //uppercase
+            size="small"
             label={`${socketStatus.toUpperCase()}`}
             color={socketStatus === "connected" ? "success" : socketStatus === "connecting" ? "warning" : "error"}
+          />
+        </Typography>
+        <Typography
+          variant="h6"
+          sx={{
+            textAlign: "center",
+          }}>
+          Lock Status:{" "}
+          <Chip
+            //uppercase
+            label={`${lockConnectionStatus.toUpperCase()}`}
+            size="small"
+            color={lockConnectionStatus === "ONLINE" ? "success" : "error"}
           />
         </Typography>
         <Box
@@ -168,6 +190,20 @@ const Welcome = (props) => {
           }}>
           {lockStatus}
         </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            textAlign: "center",
+            color: "text.secondary",
+          }}>
+          {/* local time */}
+          {new Date(lockStatusUpdatedTime).toLocaleDateString("en-US", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })}{" "}
+          {new Date(lockStatusUpdatedTime).toLocaleTimeString()}
+        </Typography>
 
         <Box sx={{ display: "flex", justifyContent: "center", mt: "40px" }}>
           <Button
@@ -177,9 +213,9 @@ const Welcome = (props) => {
             onClick={() => {
               handleUnlock();
             }}>
-            Unlock
+            Allow
           </Button>
-
+          <span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
           <Button
             variant="contained"
             color="success"
@@ -187,11 +223,11 @@ const Welcome = (props) => {
             onClick={() => {
               handleLock();
             }}>
-            Lock
+            Block
           </Button>
         </Box>
 
-        <Box
+        {/* <Box
           sx={{
             marginTop: "50px",
             marginBottom: "20px",
@@ -212,7 +248,7 @@ const Welcome = (props) => {
               ))}
             </ul>
           </div>
-        </Box>
+        </Box> */}
       </Grid>
     </Container>
   );

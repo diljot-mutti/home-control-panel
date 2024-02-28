@@ -40,6 +40,8 @@ app.use(bodyParser.json());
 let lock = {};
 let clients = [];
 let lockStatus = "UNKNOWN";
+let lockConnectionStatus = "OFFLINE";
+let lockStatusUpdatedTime = new Date(2020, 0, 1, 0, 0, 0, 0);
 
 io.on("connection", (socket) => {
   console.log("Client connected: ", socket.id);
@@ -55,6 +57,7 @@ io.on("connection", (socket) => {
   socket.on("signup_lock", ({ lockId }) => {
     console.log(lockId);
     console.log(`New Lock ${lockId} registered with socketId - ${socket.id}`);
+    lockConnectionStatus = "ONLINE";
     lock = { socketId: socket.id, uniqueId: lockId };
   });
 
@@ -66,6 +69,8 @@ io.on("connection", (socket) => {
     socket.emit("lock_status_change", {
       lockId: lock.uniqueId,
       lock_status: lockStatus,
+      lockStatusUpdatedTime: lockStatusUpdatedTime,
+      lockConnectionStatus: lockConnectionStatus,
     });
   });
 
@@ -76,17 +81,20 @@ io.on("connection", (socket) => {
 
     if (lockPinState == 1 && unlockPinState == 0) {
       lockStatus = "LOCKED";
+      lockStatusUpdatedTime = new Date();
     } else if (lockPinState == 0 && unlockPinState == 1) {
       lockStatus = "UNLOCKED";
+      lockStatusUpdatedTime = new Date();
     } else {
-      console.log("Stuck");
-      console.log(`lock pin -> ${lockPinState} -- unlock pin -> ${unlockPinState}`);
       lockStatus = "STUCK";
+      lockStatusUpdatedTime = new Date();
     }
 
     const payload = {
       lockId: lockId,
       lock_status: lockStatus,
+      lockStatusUpdatedTime: lockStatusUpdatedTime,
+      lockConnectionStatus: lockConnectionStatus,
     };
 
     // Send the lock status change to all clients in the "dilshine_users" room
@@ -106,7 +114,22 @@ io.on("connection", (socket) => {
 
   // Clean up the socket connection when the client disconnects
   socket.on("disconnect", () => {
-    console.log("Client disconnected");
+    if (clients.includes(socket.id)) {
+      clients = clients.filter((client) => client.socketId !== socket.id);
+    }
+
+    if (socket.id == lock.socketId) {
+      lock = {};
+      lockConnectionStatus = "OFFLINE";
+      io.to("dilshine_users").emit("lock_status_change", {
+        lockId: lock.uniqueId,
+        lock_status: lockStatus,
+        lockStatusUpdatedTime: lockStatusUpdatedTime,
+        lockConnectionStatus: lockConnectionStatus,
+      });
+    }
+
+    console.log("Client disconnected: ", socket.id);
   });
 
   socket.on("error", function (err) {
@@ -118,14 +141,17 @@ io.on("connection", (socket) => {
   });
 });
 
-let subscriptions = [];
-
 app.post("/subscribe", async (req, res) => {
   console.log(req.body);
   const { subscription, id } = req.body;
-  await storage.updateItem("subscriptions", subscription);
-  // console.log(subscription);
-  // subscriptions.push(subscription);
+
+  let subs = await storage.getItem("subscriptions");
+  if (!subs) {
+    subs = [];
+  }
+  subs.push(subscription);
+
+  await storage.updateItem("subscriptions", subs);
 
   res.status(201).json({});
   const payload = JSON.stringify({ title: "Subscribed to Push notifications!" });
