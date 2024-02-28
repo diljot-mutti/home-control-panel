@@ -180,21 +180,9 @@ app.get("/test", async (req, res) => {
   console.log("Test endpoint hit");
   title = "Test";
   message = "Test message";
-  const payload = JSON.stringify({ title, message });
 
-  let subs = await storage.getItem("subscriptions");
+  sendPushNotification(title, message);
 
-  subs.forEach((subscription) => {
-    webPush
-      .sendNotification(subscription, payload)
-      .catch((error) => {
-        console.error("Error sending notification, reason: ", error);
-        // return res.status(400).json({ data: { success: false } });
-      })
-      .then((value) => {
-        console.log("Notification sent successfully");
-      });
-  });
   return res.status(201).json({ data: { success: true } });
 });
 
