@@ -68,6 +68,8 @@ io.on("connection", (socket) => {
     console.log(`New Lock ${lockId} registered with socketId - ${socket.id}`);
     lockConnectionStatus = "ONLINE";
     lock = { socketId: socket.id, uniqueId: lockId };
+
+    sendPushNotification("Lock Online", "Lock is now connected");
   });
 
   // first message on client connection
@@ -108,6 +110,9 @@ io.on("connection", (socket) => {
 
     // Send the lock status change to all clients in the "dilshine_users" room
     io.to("dilshine_users").emit("lock_status_change", payload);
+
+    // Send push notification to all subscribers
+    sendPushNotification("Lock Status Change", `Lock is now ${lockStatus}`);
   });
 
   //listen to unlock request
@@ -136,6 +141,9 @@ io.on("connection", (socket) => {
         lockStatusUpdatedTime: lockStatusUpdatedTime,
         lockConnectionStatus: lockConnectionStatus,
       });
+
+      // Send push notification to all subscribers
+      sendPushNotification("Lock Offline", "Lock is now disconnected");
     }
 
     console.log("Client disconnected: ", socket.id);
@@ -189,6 +197,24 @@ app.get("/test", async (req, res) => {
   });
   return res.status(201).json({ data: { success: true } });
 });
+
+const sendPushNotification = async (title, message) => {
+  const payload = JSON.stringify({ title, message });
+
+  let subs = await storage.getItem("subscriptions");
+
+  subs.forEach((subscription) => {
+    webPush
+      .sendNotification(subscription, payload)
+      .catch((error) => {
+        console.error("Error sending notification, reason: ", error);
+        // return res.status(400).json({ data: { success: false } });
+      })
+      .then((value) => {
+        console.log("Notification sent successfully");
+      });
+  });
+};
 
 const PORT = process.env.PORT || 3015;
 

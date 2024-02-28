@@ -18,6 +18,14 @@ export var Errors;
 export const useSubscribe = ({ publicKey }) => {
   const getSubscription = async () => {
     console.log("publicKey", publicKey);
+
+    if (!("serviceWorker" in navigator)) {
+      alert("ServiceWorker not supported");
+    }
+    if (!("PushManager" in window)) {
+      alert("PushManager not supported");
+    }
+
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       throw { errorCode: Errors.ServiceWorkerAndPushManagerNotSupported };
     }

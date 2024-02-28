@@ -34,10 +34,7 @@ const Welcome = (props) => {
   async function init() {
     console.log("Getting subscription");
     try {
-      const subscription = await getSubscription().catch((e) => {
-        console.log("Error getting subscription:", e);
-        setErrString(JSON.stringify(e));
-      });
+      const subscription = await getSubscription();
 
       await axios.post(process.env.REACT_APP_API_URL, {
         subscription: subscription,
