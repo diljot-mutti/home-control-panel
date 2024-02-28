@@ -22,6 +22,15 @@ const storage = require("node-persist");
     dir: "storage",
     expiredInterval: 10 * 60 * 1000, // every 10 minutes the process will clean-up the expired cache
   });
+  console.log("Storage initialized");
+  // remove all null or undefined values from the storage
+  let subs = await storage.getItem("subscriptions");
+  if (!subs) {
+    subs = [];
+  }
+  subs = subs.filter((sub) => sub);
+  await storage.updateItem("subscriptions", subs);
+  console.log("Subscriptions cleaned up");
 })();
 
 const io = socketIo(server, {
@@ -149,8 +158,9 @@ app.post("/subscribe", async (req, res) => {
   if (!subs) {
     subs = [];
   }
-  subs.push(subscription);
-
+  if (subscription) {
+    subs.push(subscription);
+  }
   await storage.updateItem("subscriptions", subs);
 
   res.status(201).json({});
@@ -158,13 +168,13 @@ app.post("/subscribe", async (req, res) => {
   webPush.sendNotification(subscription, payload).catch((err) => console.error(err));
 });
 
-app.get("/test", (req, res) => {
+app.get("/test", async (req, res) => {
   console.log("Test endpoint hit");
   title = "Test";
   message = "Test message";
   const payload = JSON.stringify({ title, message });
 
-  let subs = storage.getItem("subscriptions");
+  let subs = await storage.getItem("subscriptions");
 
   subs.forEach((subscription) => {
     webPush
